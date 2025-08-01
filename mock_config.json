@@ -1,0 +1,25 @@
+{
+  "mocks": {
+    "/test": "tests/test-mocks"
+  },
+  "proxies": [
+    {
+      "target": "https://other-example.com",
+      "paths": [
+        {
+          "path": "/cheats",
+          "rewrite": "/"
+        }
+      ]
+    },
+    {
+      "target": "https://example.com",
+      "paths": [
+        {
+          "path": "/joke",
+          "rewrite": "/some/other/path"
+        }
+      ]
+    }
+  ]
+}
