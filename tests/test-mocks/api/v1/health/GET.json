@@ -1,0 +1,12 @@
+{
+  "status": "healthy",
+  "service": "filesystem-api-mocker",
+  "version": "1.0.0",
+  "timestamp": "2025-08-01T12:00:00Z",
+  "checks": {
+    "filesystem": "ok",
+    "memory": "ok",
+    "routes": "ok"
+  },
+  "uptime": "2h 15m 30s"
+}

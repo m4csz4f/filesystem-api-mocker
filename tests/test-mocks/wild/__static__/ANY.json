@@ -1,0 +1,13 @@
+{
+  "message": "Static JSON response",
+  "type": "wildcard_static",
+  "description": "This is served for any HTTP method when no specific handler exists",
+  "examples": {
+    "usage": "Useful for simple responses that don't need dynamic logic",
+    "priority": "Lower priority than .js handlers but higher than 404"
+  },
+  "metadata": {
+    "served_by": "ANY.json",
+    "timestamp": "2025-08-01T12:00:00Z"
+  }
+}

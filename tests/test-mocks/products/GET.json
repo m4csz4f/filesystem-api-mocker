@@ -1,0 +1,34 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "name": "Laptop Pro",
+      "category": "Electronics",
+      "price": 1299.99,
+      "inStock": true,
+      "description": "High-performance laptop for professionals"
+    },
+    {
+      "id": 2,
+      "name": "Wireless Headphones",
+      "category": "Audio",
+      "price": 199.99,
+      "inStock": false,
+      "description": "Premium noise-canceling headphones"
+    },
+    {
+      "id": 3,
+      "name": "Smart Watch",
+      "category": "Wearables",
+      "price": 399.99,
+      "inStock": true,
+      "description": "Advanced fitness and productivity tracker"
+    }
+  ],
+  "categories": ["Electronics", "Audio", "Wearables"],
+  "meta": {
+    "total": 3,
+    "inStock": 2,
+    "outOfStock": 1
+  }
+}
