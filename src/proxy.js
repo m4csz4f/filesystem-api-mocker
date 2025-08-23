@@ -1,3 +1,4 @@
+import http from 'http';
 import https from 'https';
 
 /**
@@ -25,39 +26,55 @@ import https from 'https';
  * configureProxy(app, config);
  */
 export const configureProxy = (app, config) => {
-  config.proxies.forEach(proxy => {
-    if (proxy.paths) {
-      proxy.paths.forEach(({ path, rewrite }) => {
+  config.proxies.forEach(({ target, changeOrigin, paths }) => {
+    if (paths) {
+      paths.forEach(({ path, rewrite }) => {
         path = path.startsWith('/') ? path : `/${path}`;
         path = path.endsWith('/') ? path.slice(0, -1) : path;
-        proxy.target = proxy.target.endsWith('/')
-          ? proxy.target.slice(0, -1)
-          : proxy.target;
+        target = target.endsWith('/') ? target.slice(0, -1) : target;
         if (rewrite === '/') rewrite = '';
-        console.log(
-          `Setting up proxy for path: ${path} to target: ${proxy.target}`,
-        );
+        console.log(` * ${path || '/'} to target: ${target}`);
         app.use(path, (req, res) => {
-          const options = {
-            method: req.method,
-            headers: { ...req.headers, host: new URL(proxy.target).host },
-            rejectUnauthorized: false, // Bypass SSL certificate verification
-          };
           const proxyUrl = new URL(
-            `${proxy.target}${
+            `${target}${
               rewrite ? req.originalUrl.replace(path, rewrite) : req.originalUrl
             }`,
           );
+          const isHttps = proxyUrl.protocol === 'https:';
+          const requestModule = isHttps ? https : http;
+
+          const options = {
+            method: req.method,
+            headers: changeOrigin
+              ? { ...req.headers, host: proxyUrl.host }
+              : req.headers,
+            rejectUnauthorized: false, // Bypass SSL certificate verification
+          };
           console.log(`Proxying request to: ${proxyUrl.href}`);
-          const proxyRequest = https.request(proxyUrl, options, proxyRes => {
-            res.writeHead(proxyRes.statusCode, proxyRes.headers);
-            proxyRes.pipe(res, { end: true });
-          });
+          const proxyRequest = requestModule.request(
+            proxyUrl,
+            options,
+            proxyRes => {
+              res.writeHead(proxyRes.statusCode, proxyRes.headers);
+              proxyRes.pipe(res, { end: true });
+            },
+          );
           proxyRequest.on('error', err => {
             console.error(`Error in proxy request: ${err.message}`);
             res.status(500).json({ error: 'Proxy request failed' });
           });
-          req.pipe(proxyRequest, { end: true });
+
+          if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+            const bodyData = JSON.stringify(req.body);
+            proxyRequest.setHeader(
+              'Content-Length',
+              Buffer.byteLength(bodyData),
+            );
+            proxyRequest.write(bodyData);
+            proxyRequest.end();
+          } else {
+            req.pipe(proxyRequest, { end: true });
+          }
         });
       });
     }

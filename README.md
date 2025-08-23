@@ -2,6 +2,92 @@
 
 This is a simple mock API server built with Express.js. It serves as a placeholder for API endpoints during development and testing.
 
+## Configuration (`mock_config.json`)
+
+The server behavior is driven by a JSONC (JSON with comments) configuration file named `mock_config.json` located at the project root. It supports three top‑level keys:
+
+- `default_response` – Fallback HTTP response when no mock or proxy route matches
+   - `status` (number) – HTTP status code to return (default: `500` if unspecified)
+   - `body` (object) – JSON payload returned. If omitted: `{ "error": "No route matched" }`
+- `mocks` – Object mapping a base URL path (key) to a relative filesystem directory (value) that contains mock handlers / static JSON. Each mapped directory is mounted at the normalized path (leading slash enforced, trailing slash trimmed).
+   - Example: `"/test": "tests/test-mocks"` mounts the content of `tests/test-mocks` at `http://localhost:<port>/test`
+- `proxies` – Array of proxy definitions forwarding selected incoming request paths to external targets (optionally rewriting the path segment).
+   - `target` (string) – Base target URL (trailing slash trimmed)
+   - `changeOrigin` (boolean, optional) – If true, replaces `Host` header with target host
+   - `paths` (array) – Per-path proxy rules
+      - `path` (string) – Incoming path prefix to match (normalized: leading slash ensured, trailing slash trimmed)
+      - `rewrite` (string, optional) – Replacement prefix for the forwarded request path (use `/` to drop the matched prefix)
+
+### Example
+
+```jsonc
+{
+   "default_response": {
+      "status": 404,
+      "body": { "error": "Requested path not found" }
+   },
+   "mocks": {
+      "/test": "tests/test-mocks"
+   },
+   "proxies": [
+      {
+         "target": "https://other-example.com",
+         "changeOrigin": true,
+         "paths": [
+            { "path": "/cheats", "rewrite": "/" }
+         ]
+      },
+      {
+         "target": "https://example.com",
+         "paths": [
+            { "path": "/joke", "rewrite": "/some/other/path" }
+         ]
+      }
+   ]
+}
+```
+
+### Mock Directory Structure Rules
+
+Within each mapped mock directory:
+
+- Files named after HTTP methods (e.g., `GET.json`, `POST.js`) are served/executed when the corresponding method and path match.
+- `ANY.js` or `ANY.json` are fallbacks when a specific method file does not exist.
+- Dynamic path segments are created with double‑underscore directory names, e.g. `__id__` → becomes `:id` and is available at `req.params.id`.
+- For JavaScript handlers, export either a default function or a named `handler` function: `export default (req, res) => { ... }`.
+
+### Proxy Behavior
+
+For each proxy rule:
+
+- Incoming request path is matched against `paths[].path`.
+- If `rewrite` is provided, the matched prefix is replaced; if `rewrite` is `/`, the prefix is removed.
+- Headers are forwarded as-is unless `changeOrigin` is set (then the `Host` header is adjusted to the target host).
+- Request bodies for `POST`, `PUT`, and `PATCH` are JSON‑stringified if present.
+
+### Order of Resolution
+
+1. Incoming request is first checked against configured mock mount points.
+2. If no mock file matches the traversed filesystem path, the request falls through.
+3. Proxies are applied based on their mounted middleware order (declared order in config). (In current implementation proxies are configured before mocks.)
+4. If neither a mock nor proxy handles the request, `default_response` is returned.
+
+### Updating Configuration During Development
+
+`nodemon` watches `mock_config.json`. Saving changes restarts the server automatically when running with `yarn dev`.
+
+### Minimal Config Template
+
+```jsonc
+{
+   "default_response": { "status": 404, "body": { "error": "Not Found" } },
+   "mocks": {},
+   "proxies": []
+}
+```
+
+If `default_response` is omitted, status defaults to 500 and body to `{ "error": "No route matched" }`.
+
 ## HTTPS Support
 
 The server supports HTTPS by using a self-signed certificate. This is useful for local development environments where you want to test secure connections.
@@ -35,7 +121,7 @@ Keep in mind that using a self-signed certificate will result in browser warning
 
 The mock server supports named parameters in directory structures. Directory names wrapped in double underscores (`__name__`) are treated as named parameters that can be accessed in your handler functions.
 
-### How it works:
+### How it works
 
 1. **Directory Structure**: Create directories with names like `__name__`, `__id__`, `__category__`, etc.
 2. **URL Mapping**: When a request is made, the server maps URL segments to these parameter directories
@@ -69,7 +155,7 @@ tests/
     └── api/v1/health/     # Nested API structure mock handlers
 ```
 
-> Read more about the *test-mocks* directory structure in the [test-mocks README](tests/test-mocks/README.md).
+> Read more about the _test-mocks_ directory structure in the [test-mocks README](tests/test-mocks/README.md).
 
 ### Test Categories
 
@@ -84,7 +170,6 @@ tests/
 3. **End-to-End Tests** (`integration.test.js`)
    - Test complex scenarios with nested routes
    - Test HTTP method prioritization and fallbacks
-
 
 ### Running Individual Test Suites
 

@@ -1,6 +1,6 @@
 {
   "name": "filesystem-api-mocker",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Simple api mocker using filesystem structure to define endpoints",
   "main": "src/app.js",
   "type": "module",
@@ -25,6 +25,7 @@
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
+    "jsonc-parser": "^3.3.1",
     "node-fetch": "^3.1.0"
   },
   "devDependencies": {
@@ -42,7 +43,8 @@
     "exec": "node src/app.js",
     "watch": [
       "src",
-      ".env"
+      ".env",
+      "mock_config.json"
     ],
     "ignore": [
       "node_modules/**/node_modules",
