@@ -1,21 +1,23 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import express from 'express';
+import { parse as parseJsonc } from 'jsonc-parser';
 
-import https from 'https';
 import fs from 'fs';
+import https from 'https';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { coloredMessage } from './helpers/colorLog.js';
+import { configureMockRoutes } from './mocker.js';
+import { configureProxy } from './proxy.js';
 
 const app = express();
 const appEnv = process.env;
 const portHttp = appEnv.PORT || 5000;
 const portHttps = appEnv.HTTPS_PORT || 5001;
-import { configureProxy } from './proxy.js';
-import { configureMockRoutes } from './mocker.js';
 
 const corsOptions = {
   origin: 'http://localhost:3000',
@@ -27,33 +29,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const configPath = path.join(__dirname, '..', 'mock_config.json');
-console.log(`Using config file: ${configPath}`);
-const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+console.log(coloredMessage('yellow')(`Using config file: ${configPath}`));
+
+const config = parseJsonc(fs.readFileSync(configPath, 'utf8'));
 
 let messageCounter = 0;
 app.use(cors(corsOptions));
 
 app.use(bodyParser.json());
 
+const blue = coloredMessage('blue');
+const redBlue = coloredMessage('red', 'blue');
+const green = coloredMessage('green');
+
 app.use((req, res, next) => {
   messageCounter += 1;
 
-  const coloredString = (color, endColor = 'reset') => {
-    const colors = {
-      red: '\x1b[31m',
-      green: '\x1b[32m',
-      blue: '\x1b[34m',
-      reset: '\x1b[0m',
-    };
-    if (!(color in colors)) color = 'reset';
-
-    return message => `${colors[color]}${message}${colors[endColor]}`;
-  };
-
   console.log(`
-${coloredString('green')(
-  `============= START message ${messageCounter} ==============`,
-)}
+${green(`============= START message ${messageCounter} ==============`)}
 
 URL: ${req.originalUrl}
 --------
@@ -66,12 +59,7 @@ Query: ${JSON.stringify(req.query, null, 1)}
 Headers: ${JSON.stringify(req.headers, null, 1)}
 --------
 Body: ${JSON.stringify(req.body, null, 1)}
-${coloredString('blue')(
-  `============= END message ${coloredString(
-    'red',
-    'blue',
-  )(messageCounter)} ==============`,
-)}
+${blue(`============= END message ${redBlue(messageCounter)} ==============`)}
 
 `);
   next();
@@ -82,21 +70,29 @@ app.get('/health', (req, res) => {
 });
 
 // Proxies
+console.log(coloredMessage('blue', 'blue')('Configuring proxies:'));
 if (config.proxies && config.proxies.length > 0) {
   configureProxy(app, config);
 } else {
-  console.info('No proxies defined in config.json');
+  console.log('No proxies defined in config.json');
 }
 
+console.log(green('Configuring mock routes:'));
 Object.entries(config.mocks || {}).forEach(([mockPath, mockDirectory]) => {
   mockPath = mockPath.startsWith('/') ? mockPath : `/${mockPath}`;
   mockPath = mockPath.endsWith('/') ? mockPath.slice(0, -1) : mockPath;
 
   const target_dir = path.join(__dirname, '..', mockDirectory);
+  console.log(green(` * ${mockPath || '/'}  -> ${target_dir}`));
   app.use(mockPath, configureMockRoutes(target_dir));
 });
 
-app.use((req, res) => res.status(500).json({ error: 'Error 🤡' }));
+console.log('No routes matched, sending default response');
+app.use((req, res) =>
+  res
+    .status(config.default_response?.status ?? 500)
+    .json(config.default_response?.body || { error: 'No route matched' }),
+);
 
 app.listen(portHttp, () => {
   console.log(

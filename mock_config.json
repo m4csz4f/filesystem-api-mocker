@@ -1,10 +1,17 @@
 {
+  "default_response": {
+    "status": 404,
+    "body": {
+      "error": "Requested path not found" // Default response body
+    }
+  },
   "mocks": {
     "/test": "tests/test-mocks"
   },
   "proxies": [
     {
       "target": "https://other-example.com",
+      "changeOrigin": true,
       "paths": [
         {
           "path": "/cheats",
