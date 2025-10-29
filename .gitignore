@@ -148,3 +148,5 @@ dist
 certs/
 
 temp/
+*.ignored.json
+*.ignored.jsonc
