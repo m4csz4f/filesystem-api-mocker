@@ -44,7 +44,11 @@
     "watch": [
       "src",
       ".env",
-      "mock_config.json"
+      "mock_config.json",
+      "*.config.json",
+      "*.config.jsonc",
+      "*.mock.json",
+      "*.mock.jsonc"
     ],
     "ignore": [
       "node_modules/**/node_modules",

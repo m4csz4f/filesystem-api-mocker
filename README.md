@@ -88,6 +88,39 @@ For each proxy rule:
 
 If `default_response` is omitted, status defaults to 500 and body to `{ "error": "No route matched" }`.
 
+### Selecting an Alternate Configuration File
+
+You can point the server at a different configuration file without renaming `mock_config.json`.
+
+Precedence (highest wins):
+
+1. CLI flag `--config <file>` or `-c <file>`
+2. Environment variable `MOCK_CONFIG=<file>`
+3. Default: `mock_config.json` in project root
+
+Examples:
+
+```bash
+# Use a relative path
+node src/app.js --config alt_config.mock.json
+
+# Using short flag
+node src/app.js -c alt.json
+
+# Absolute path
+node src/app.js --config /abs/path/to/local.jsonc
+
+# Via environment variable
+MOCK_CONFIG=team.mock.json node src/app.js
+
+# With yarn dev (nodemon will restart on changes to common *config/mock* patterns)
+MOCK_CONFIG=staging.config.json yarn dev
+```
+
+If the specified file is missing or cannot be parsed as JSON/JSONC the process exits with an error message.
+
+> Note: If you use `yarn dev`, to start the server in development mode with auto-restart on file changes, use the `-c` flag rather than `--config` due to `nodemon` limitations.
+
 ## HTTPS Support
 
 The server supports HTTPS by using a self-signed certificate. This is useful for local development environments where you want to test secure connections.
