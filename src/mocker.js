@@ -80,9 +80,10 @@ export const findMatchingDir = (currentPath, segment) => {
 export const configureMockRoutes = directoryPath => {
   const router = express.Router();
 
-  router.use('*', async (req, res) => {
+  router.use(async (req, res) => {
     const method = req.method.toUpperCase();
-    const requestPath = req.params[0] || '';
+    const rawPath = req.params && req.params[0] !== undefined ? req.params[0] : req.path || '';
+    const requestPath = rawPath && rawPath.startsWith('/') ? rawPath.slice(1) : rawPath;
 
     const pathSegments = requestPath
       .split('/')

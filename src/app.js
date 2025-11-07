@@ -28,10 +28,45 @@ const corsOptions = {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const configPath = path.join(__dirname, '..', 'mock_config.json');
+// Resolve configuration file path with precedence: CLI arg (--config|-c) > env (MOCK_CONFIG) > default
+const resolveConfigPath = () => {
+  const argv = process.argv.slice(2);
+  let candidate;
+  const idx = argv.findIndex(a => a === '--config' || a === '-c');
+  if (idx !== -1) {
+    candidate = argv[idx + 1];
+    if (!candidate || candidate.startsWith('-')) {
+      console.error('Missing value after --config/-c option');
+      process.exit(1);
+    }
+  }
+  if (!candidate && process.env.MOCK_CONFIG) {
+    candidate = process.env.MOCK_CONFIG;
+  }
+  candidate = candidate || 'mock_config.json';
+  const fullPath = path.isAbsolute(candidate)
+    ? candidate
+    : path.join(__dirname, '..', candidate);
+  if (!fs.existsSync(fullPath)) {
+    console.error(`Config file not found: ${fullPath}`);
+    process.exit(1);
+  }
+  return fullPath;
+};
+
+const loadConfig = () => {
+  try {
+    return parseJsonc(fs.readFileSync(configPath, 'utf8'));
+  } catch (e) {
+    console.error(`Failed to load config file as JSON / JSONC: ${e.message}`);
+    process.exit(1);
+  }
+};
+
+const configPath = resolveConfigPath();
 console.log(coloredMessage('yellow')(`Using config file: ${configPath}`));
 
-const config = parseJsonc(fs.readFileSync(configPath, 'utf8'));
+const config = loadConfig();
 
 let messageCounter = 0;
 app.use(cors(corsOptions));
@@ -74,7 +109,7 @@ console.log(coloredMessage('blue', 'blue')('Configuring proxies:'));
 if (config.proxies && config.proxies.length > 0) {
   configureProxy(app, config);
 } else {
-  console.log('No proxies defined in config.json');
+  console.log('No proxies defined in the config file.');
 }
 
 console.log(green('Configuring mock routes:'));
@@ -87,12 +122,12 @@ Object.entries(config.mocks || {}).forEach(([mockPath, mockDirectory]) => {
   app.use(mockPath, configureMockRoutes(target_dir));
 });
 
-console.log('No routes matched, sending default response');
-app.use((req, res) =>
+app.use((req, res) => {
+  console.log('No routes matched, sending default response');
   res
     .status(config.default_response?.status ?? 500)
-    .json(config.default_response?.body || { error: 'No route matched' }),
-);
+    .json(config.default_response?.body || { error: 'No route matched' });
+});
 
 app.listen(portHttp, () => {
   console.log(
